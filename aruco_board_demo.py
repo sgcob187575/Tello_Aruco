@@ -1,19 +1,17 @@
 from turtle import width
+from matplotlib import pyplot as plt
+from matplotlib.patches import Rectangle
+import mpl_toolkits.mplot3d.art3d as art3d
+
 import cv2
 import numpy as np
 #import tello
 import time
 import math
 from djitellopy import Tello
-from pyimagesearch.pid import PID
+# from pyimagesearch.pid import PID
 import torch
 import sys
-
-
-speed = 10
-
-up_down_speed = 0
-left_right_speed = 0
 
 tello = None
 Go_=False
@@ -32,7 +30,7 @@ def keyboard(self, key):
     degree = 30
     if key == ord('1'):
         self.takeoff()
-        #is_flying = True
+        is_flying = True
     if key == ord('2'):
         self.land()
         is_flying = False
@@ -91,9 +89,10 @@ def set_distance(distance):
         return new_distance
     else:
         return distance
-def control_UVA(drone,df,width,height,yaw_pid,y_pid,z_pid) :
+def control_UVA(drone,df,width,height,coord=[0,0,-50]) :
     global is_flying
     max_speed_threshold = 40
+    max_lf_threshold=20
     yaw_update=0
     y_update=0
     z_update=0
@@ -122,38 +121,55 @@ def control_UVA(drone,df,width,height,yaw_pid,y_pid,z_pid) :
             marker_center=((df.at[0,'xmax']+df.at[0,'xmin'])/2,\
                         (df.at[0,'ymax']+df.at[0,'ymin'])/2)
             boxheight=df.at[0,'ymax']-df.at[0,'ymin']
-        if abs(marker_center[0] - width/2) > 50:                #左右
-            # print(marker_center[0] - width/2)
-            yaw_update = (marker_center[0] - width/2)//7
-            # print("org_yaw: " + str(yaw_update))
-            yaw_update = yaw_pid.update(yaw_update, sleep=0)
-            # print("new_yaw: " + str(yaw_update))
-            # print("Turn left")
-        if abs(marker_center[1] - height/2) > 30 and boxheight>200:       #上下
+        if abs(coord[2])>4:
+            if abs(marker_center[0] - width/2) > 20:                #旋轉
+                # print(marker_center[0] - width/2)
+                yaw_update = (marker_center[0] - width/2)//7
+                # print("org_yaw: " + str(yaw_update))
+                # print("new_yaw: " + str(yaw_update))
+                # print("Turn left")
+        else:
+            x_update =coord[0]
+            if x_update>0.6:
+                x_update=-max_lf_threshold
+            elif x_update<0:
+                x_update=max_lf_threshold
+            else:
+                x_update=0
+        if abs(marker_center[1] - height/2) > 30 and (boxheight>300 or abs(coord[2])<4):       #上下
             # print(marker_center[1] - height/2)
-            y_update = (marker_center[1] - height/2)//7
+            y_update = (marker_center[1] - height/2)//-7
             # print(marker_center[1] - height/2 +100)
             # print("org_y: " + str(y_update))
-            y_update = y_pid.update(y_update, sleep=0)
             # print("new_y: " + str(y_update))
             # print("Turn left")
-        else:
-            z_update = 40
+        elif x_update==0:
+            z_update = 22-coord[2]
         # print("org_z: " + str(z_update))
             # z_update = z_pid.update(z_update, sleep=0)
         # print("pid_z: " + str(z_update))
-            if z_update > max_speed_threshold:
-                z_update = max_speed_threshold
-            elif z_update < -max_speed_threshold:
-                z_update = 0
+        if z_update > max_speed_threshold:
+            z_update = max_speed_threshold
+        elif z_update < -max_speed_threshold:
+            z_update = 0
+
         if is_flying:
-            drone.send_rc_control(0, int(z_update)  ,int(y_update) ,int(yaw_update) )
+            drone.send_rc_control(int(x_update), int(z_update)  ,int(y_update) ,int(yaw_update) )
             # print("1,rollLeft,0,0.5,0,0")
                 # return "1,rollLeft,0,0.5,0,0"
     else:
         if is_flying:
             drone.send_rc_control(0, 0, 0, 0) 
-    return z_update,y_update,yaw_update
+    return x_update,z_update,y_update,yaw_update
+def hovering_control(coord_array,scale):
+    avg_dir=np.array([0,0,0],dtype=np.float64)
+    for before,after in zip(coord_array[:-2],coord_array[1:]):
+        avg_dir+=np.array(after)-np.array(before)
+    avg_dir/=len(coord_array)-1
+    x_update=-avg_dir[0]/abs(avg_dir[0])*scale/2
+    y_update=avg_dir[1]/abs(avg_dir[1])*scale/2
+    z_update=-avg_dir[2]/abs(avg_dir[2])*scale
+    return x_update,y_update,z_update
 
 def del_difftag(raw_corners,raw_ids):
     def removearray(L,arr):
@@ -186,11 +202,59 @@ def pasteImg(frame,img,left,top):
         frame[top:h,left+i,1] = frame[top:h,left+i,1]*(1-img[:,i,3]/255) + img[:,i,1]*(img[:,i,3]/255)
         frame[top:h,left+i,2] = frame[top:h,left+i,2]*(1-img[:,i,3]/255) + img[:,i,2]*(img[:,i,3]/255)
     return frame
+def draw_path(coords_3d):
+
+    average_height = np.mean(coords_3d, axis = 0)[1]
+    rec_w = 0.17
+    fig = plt.figure(figsize=(30,8), dpi=200)
+    
+    # plot 3d (tag=9)
+    ax3d_area = fig.add_subplot(1, 3, 1, projection='3d')
+    ax3d_area.scatter(-coords_3d[:,0], -coords_3d[:,2], coords_3d[:,1], c="firebrick", marker='+', depthshade=0)
+    rec = Rectangle((-rec_w/2, -rec_w/2), rec_w, rec_w, color="black")
+    ax3d_area.add_patch(rec)
+    art3d.pathpatch_2d_to_3d(rec, z=0, zdir="y")
+    ax3d_area.tick_params(axis='x', labelsize=20)
+    ax3d_area.tick_params(axis='y', labelsize=20)
+    ax3d_area.tick_params(axis='z', labelsize=20)
+    ax3d_area.set_xlim(-7, 7)
+    ax3d_area.set_ylim(-3, 11)
+    ax3d_area.set_zlim(-7, 7)
+    
+    # plot 3d plat view (tag=9)
+    ax3df_area = fig.add_subplot(1, 3, 2, projection='3d')
+    ax3df_area.scatter(-coords_3d[:,0], -coords_3d[:,2], coords_3d[:,1], c="firebrick", marker='+', depthshade=0)
+    rec = Rectangle((-rec_w/2, -rec_w/2), rec_w, rec_w, color="black")
+    ax3df_area.add_patch(rec)
+    art3d.pathpatch_2d_to_3d(rec, z=0, zdir="y")
+    ax3df_area.tick_params(axis='x', labelsize=20)
+    ax3df_area.tick_params(axis='y', labelsize=20)
+    ax3df_area.tick_params(axis='z', labelsize=20)
+    ax3df_area.view_init(elev=0, azim=-90)
+    ax3df_area.set_xlim(-7, 7)
+    ax3df_area.set_zlim(-7, 7)
+    ax3df_area.dist = 7
+    
+    # plot 2d (tag=9)
+    ax2d_area = fig.add_subplot(1, 3, 3)
+    axtemp_area = ax2d_area.scatter(-coords_3d[:,0], -coords_3d[:,2], c="firebrick", marker='+')
+    x, y = [-rec_w/2, rec_w/2], [0, 0]
+    ax2d_area.plot(x, y, color="black", linewidth=5)
+    ax2d_area.tick_params(axis='x', labelsize=20)
+    ax2d_area.tick_params(axis='y', labelsize=20)
+    ax2d_area.axis('equal')
+    
+   
+    
+    fig.tight_layout()
+    plt.savefig('run/figures/drone_{}.png'.format(time.strftime("%m_%d_%H_%M_%S",time.localtime())))
+    plt.close()
+
 def main():
     # Tello
     model = torch.hub.load('yolov5', 'custom', path='./best/best.pt',source='local')
     model.iou = 0.3# 設定 IoU 門檻值
-    model.conf = 0.5# 設定信心門檻值
+    model.conf = 0.7# 設定信心門檻值
     drone = Tello()
     drone.connect()
     #time.sleep(10)
@@ -198,22 +262,22 @@ def main():
     global Go_
     global is_flying
     global start_fly
-    x_update=y_update=z_update=0
+    x_update=y_update=z_update=yaw_update=0
     # # Get the parameters of camera calibration
     # fs = cv2.FileStorage("calibrateCamera.xml", cv2.FILE_STORAGE_READ)
     # intrinsic = fs.getNode("intrinsic").mat()
     # distortion = fs.getNode('distortion').mat()
-    intrinsic = np.load("run/numpy/drone_calib_mtx.npy")
-    distortion = np.load("run/numpy/drone_calib_dist.npy")
+    intrinsic = np.load("run/numpy/opencv_mtx.npy")
+    distortion = np.load("run/numpy/opencv_dist.npy")
 
 
-    z_pid = PID(kP=0.7, kI=0.0001, kD=0.1)
-    y_pid = PID(kP=0.7, kI=0.0001, kD=0.1)
-    yaw_pid = PID(kP=0.7, kI=0.0001, kD=0.1)
+    # z_pid = PID(kP=0.7, kI=0.0001, kD=0.1)
+    # y_pid = PID(kP=0.7, kI=0.0001, kD=0.1)
+    # yaw_pid = PID(kP=0.7, kI=0.0001, kD=0.1)
 
-    yaw_pid.initialize()
-    z_pid.initialize()
-    y_pid.initialize()
+    # yaw_pid.initialize()
+    # z_pid.initialize()
+    # y_pid.initialize()
 
     max_speed_threshold = 40
     max_lf_threshold=30
@@ -243,14 +307,15 @@ def main():
     img_go = cv2.resize(img_go, (30, 30))
     img_clockwise = cv2.resize(img_clockwise, (30, 30))
     img_counterclock = cv2.resize(img_counterclock, (30, 30))
-
     drone.streamon()
-    vid = cv2.VideoWriter('record/drone_{}.MP4'.format(time.strftime("%m_%d_%H_%M_%S",time.localtime())), cv2.VideoWriter_fourcc(*'mp4v'), 30, (960, 720))
-    vid_L = cv2.VideoWriter('record/drone_{}L.MP4'.format(time.strftime("%m_%d_%H_%M_%S",time.localtime())), cv2.VideoWriter_fourcc(*'mp4v'), 30, (960, 720))
+    vid = cv2.VideoWriter('record/drone_{}.MP4'.format(time.strftime("%m_%d_%H_%M_%S",time.localtime())), cv2.VideoWriter_fourcc(*'mp4v'),24, (960, 720))
+    vid_L = cv2.VideoWriter('record/drone_{}L.MP4'.format(time.strftime("%m_%d_%H_%M_%S",time.localtime())), cv2.VideoWriter_fourcc(*'mp4v'), 24, (960, 720))
     count_frame=0
     start_fly=False
+    coord_array = []
+    scale=40
     while True:
-        
+        x_update=y_update=z_update=0
         xyz_text=""
         frame = drone.get_frame_read().frame
         if is_flying:
@@ -268,6 +333,7 @@ def main():
         # print(frame.shape)
         width=frame.shape[1]
         height=frame.shape[0]
+        im=frame[:,:,[2,0,1]]
         # brightness
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         brightness = np.mean(gray_frame)    
@@ -276,7 +342,7 @@ def main():
         vid.write(frame)
 
         # 進行物件偵測
-        results = model(frame)
+        results = model(im)
         # 顯示結果摘要
         #results.print()
         df=results.pandas().xyxy[0]
@@ -285,7 +351,7 @@ def main():
         # IMU=drone.query_attitude()
         # print(IMU)
         markerCorners, markerIds, _ = cv2.aruco.detectMarkers(frame, aruco_dict, parameters=aruco_params)
-        if len(markerCorners)>3:
+        if len(markerCorners):
             corners,ids=del_difftag(markerCorners, markerIds)
             np_ids = np.array(ids)
             _, rvec, tvec = cv2.aruco.estimatePoseBoard(corners, np_ids, aruco_board, intrinsic, distortion, None, None, False)
@@ -293,7 +359,8 @@ def main():
             if rvec is not None:
                 z_update = 0
                 y_update = 0
-                yaw_update = 0 
+                yaw_update = 0
+                x_update=0 
 
                 RotationMatrix = cv2.Rodrigues(rvec)
                 rmat, _ = cv2.Rodrigues(rvec)
@@ -306,8 +373,8 @@ def main():
                     yaw+=180
                 else:
                     yaw-=180
-                world_degree=yaw
                 tan=(coord[0,0]-0.3)/coord[0,2]
+                world_degree=math.degrees(math.atan(tan))
                 yaw+=math.degrees(math.atan(tan))
 
                 
@@ -326,11 +393,15 @@ def main():
 
                 cv2.putText(result_frame, "Distance: {:.2f}m".format(distance), np.array([20, height-20]), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0, 255, 0), thickness=2)
                 cv2.drawFrameAxes(result_frame, intrinsic, distortion, rvec, tvec, 0.2)
-
-                xyz_text = "x: " + str(round(coord[0,0],3)) + "  y: " + str(round(coord[0,1], 3)) + "  z: " + str(round(coord[0,2],3))+" yaw: "+str(round(world_degree,3))
-                cv2.putText(result_frame , xyz_text, np.array([20, height-50]) , cv2.FONT_HERSHEY_SIMPLEX , 1 , (0,255,255) , 2 , cv2.LINE_AA)
-                if abs(coord[0,0]-0.3)<0.3 and abs(coord[0,1]-0.3)<0.3 and coord[0,2]>-1.5:
+                coord_array.append([coord[0,0],coord[0,1],coord[0,2]])
+                xyz_text = "x: " + str(round(coord[0,0],3)) + "  y: " + str(round(coord[0,1], 3)) + "  z: " + str(round(coord[0,2],3))+" world degree: "+str(round(world_degree,3))+" yaw: "+str(round(yaw,3))
+                cv2.putText(result_frame , xyz_text, np.array([20, height-50]) , cv2.FONT_HERSHEY_SIMPLEX , 0.8 , (0,255,255) , 2 , cv2.LINE_AA)
+                if abs(coord[0,0]-0.3)<0.3 and abs(coord[0,1]-0.3)<0.5 and coord[0,2]>-2:
                     print("...............hovering...............")
+                    cv2.putText(result_frame, "hovering", np.array([20, height-180]), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0, 255, 0), thickness=2)
+                    x_update,y_update,z_update=hovering_control(coord_array[-5:],scale)
+                    if scale>20:
+                        scale-=0.2
                 elif(abs(coord[0,2]) > 20):
                     #drone.send_rc_control(0, 0, 0, 0)
                     Go_ = True
@@ -342,11 +413,13 @@ def main():
                         z_update = max_speed_threshold
                     elif z_update < -max_speed_threshold:
                         z_update = 0
-                    if is_flying:
-                        drone.send_rc_control(0, int(z_update)  ,0 ,0 )
+                    # if is_flying:
+                    #     drone.send_rc_control(0, int(z_update)  ,0 ,0 )
                 #drone.send_rc_control(0, 0, 0, 0) 
                 else:
-                    if(abs(coord[0,2]) > 4):
+                    rotate_delay=0
+                    if(abs(coord[0,2]) > 4 and rotate_delay<=0):
+                        rotate_delay-=1
                         #drone.send_rc_control(0, 0, 0, 0)
                         Go_ = True
                         z_update = 30-coord[0,2]
@@ -363,54 +436,83 @@ def main():
                         if (abs(yaw) > 5) :
                             max_rotate_threshold=10
                             Go_ = True
-                            yaw_update = yaw
+                            if abs(world_degree)>30:
+                                x_update=world_degree
+                            else:
+                                yaw_update = yaw
+                                # print("org_yaw: " + str(yaw_update))
+                                #yaw_update = yaw_pid.update(yaw, sleep=0)
+                                if yaw_update > max_rotate_threshold:
+                                    yaw_update = max_rotate_threshold
+                                elif yaw_update < -max_rotate_threshold:
+                                    yaw_update = -max_rotate_threshold
+                            # print("new_yaw: " + str(yaw_update))
+                            # print("Turn left")
+                            #drone.send_rc_control(0, 0, 0, int(yaw_update))
+                    else:
+                        if abs(coord[0,2]) < 4:
+                            rotate_delay-=1
+                        else:
+                            rotate_delay=300
+                        Go_ = True
+                        if (abs(yaw-world_degree) > 8) and abs(world_degree)<20 :
+                            max_rotate_threshold=10
+                            Go_ = True
+                            yaw_update = yaw-world_degree
                             # print("org_yaw: " + str(yaw_update))
                             #yaw_update = yaw_pid.update(yaw, sleep=0)
                             if yaw_update > max_rotate_threshold:
                                 yaw_update = max_rotate_threshold
                             elif yaw_update < -max_rotate_threshold:
                                 yaw_update = -max_rotate_threshold
-                            # print("new_yaw: " + str(yaw_update))
-                            # print("Turn left")
-                            #drone.send_rc_control(0, 0, 0, int(yaw_update))
-                    else:
-                        Go_ = True
-                        x_update =coord[0,0]
-                        if x_update>0.6:
-                            x_update=-max_lf_threshold
-                        elif x_update<0:
-                            x_update=max_lf_threshold
                         else:
-                            x_update=0
-                            z_update = 22-coord[0,2]
-                            if z_update > max_speed_threshold:
-                                z_update = max_speed_threshold
-                            elif z_update < 0:
-                                z_update = 0
+                            x_update =coord[0,0]
+                            if x_update>0.6:
+                                x_update=-max_lf_threshold#*(abs(coord[0,2])/4)
+                            elif x_update<0:
+                                x_update=max_lf_threshold#*(abs(coord[0,2])/4)
+                            else:
+                                x_update=0
+                                z_update =30-coord[0,2]
+                                if z_update > max_speed_threshold:
+                                    z_update = max_speed_threshold
+                                elif z_update < 0:
+                                    z_update = 0
                         
-                        
-                    if (abs(coord[0,1]-0.3)>0.3):
+                    height_delay=0
+                    if (abs(coord[0,1]-0.3)>0.3) and height_delay<=0:
+                        height_delay-=1
                         Go_ = True
                         max_y_threshold=40
                         y_update = (coord[0,1]-0.3)*50
                         #print("org_y: " + str(y_update))
-                        y_update = y_pid.update(y_update, sleep=0)
+                        # y_update = y_pid.update(y_update, sleep=0)
                         if y_update > max_y_threshold:
-                                y_update = max_y_threshold
+                            y_update = max_y_threshold
                         elif y_update < -max_y_threshold:
                             y_update = -max_y_threshold
                         #print("pid_y: " + str(y_update))
                         #drone.send_rc_control(0, 0 ,int((y_update//2) * (-3))  ,0 )
-                    
-                if is_flying:
-                    drone.send_rc_control(int(x_update), int(z_update)  , int(y_update ) , int(yaw_update) )
-                
+                    elif abs(coord[0,1]-0.3)<0.3:
+                        height_delay=150
+                    else:
+                        height_delay-=1
+                try:
+                    if is_flying:
+                        drone.send_rc_control(int(x_update), int(z_update)  , int(y_update ) , int(yaw_update) )
+                except:
+                    print("ValueError:",x_update,z_update,y_update,yaw_update)
                 #print("fb_speed: " + str( z_update ))
                 #print("ud_speed: " + str( y_update ))
                 #print("yaw_speed: " + str( yaw_update ))
         else:
-            Go_=True      
-            z_update,y_update,yaw_update=control_UVA(drone,df,width,height,yaw_pid,y_pid,z_pid)
+            if(len(df.index)):
+                Go_=True      
+                if len(coord_array):
+                    x_update,z_update,y_update,yaw_update=control_UVA(drone,df,width,height,coord_array[-1])
+                else:
+                    x_update,z_update,y_update,yaw_update=control_UVA(drone,df,width,height)
+
         for i in df.index:
             cv2.rectangle(result_frame, (int(df.at[i,'xmin']),int(df.at[i,'ymin'])), (int(df.at[i,'xmax']), int(df.at[i,'ymax'])), (0, 0 , 255), 3, cv2.LINE_AA)
         # try:
@@ -432,20 +534,23 @@ def main():
             result_frame=pasteImg(result_frame,img_up,125,height-150)
         elif y_update<0:
             result_frame=pasteImg(result_frame,img_down,125,height-150)
+        #cv2.putText(result_frame , str(time.time()), np.array([20, height-150]) , cv2.FONT_HERSHEY_SIMPLEX , 0.7 , (0,255,255) , 2 , cv2.LINE_AA)
         controll_text="brightness:"+str(round(brightness,2))+" lf_speed:" + str( round(x_update,2) )+" fb_speed:" + str(round(z_update,2)  )+" ud_speed:" + str( round(y_update,2) )+" yaw_speed:" + str( round(yaw_update,2) )
         cv2.putText(result_frame , controll_text, np.array([20, height-90]) , cv2.FONT_HERSHEY_SIMPLEX , 0.7 , (0,255,255) , 2 , cv2.LINE_AA)
         vid_L.write(result_frame)
-
+        
         cv2.imshow('framecopy' , result_frame)
         flying_info="fb_speed:" + str(round(z_update,2)  )+" ud_speed:" + str( round(y_update,2) )+" yaw_speed:" + str( round(yaw_update,2) )+"\n"+xyz_text+"\n"+df.to_string()
         #sys.stdout.write("\x1b[2K\x1b[1A\x1b[2K"+"\x1b[1A\x1b[2K"+"\x1b[1A\x1b[2K"+"\r"+flying_info)
-        sys.stdout.write(flying_info)
-        sys.stdout.flush()
+        # sys.stdout.write(flying_info)
+        # sys.stdout.flush()
+        print(flying_info)
         key = cv2.waitKey(1)
 
         if key != -1:
             keyboard(drone, key)
             if key==ord('3') or key==ord('2'):
+                draw_path(np.array(coord_array))
                 vid.release()
                 vid_L.release()
                 cv2.destroyAllWindows()
