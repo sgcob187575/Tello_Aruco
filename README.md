@@ -6,7 +6,7 @@ UVA aruco and opencv controller
 * pytorch-1.0
   
 ### data preparation
-* training data: [data/<training_dataset>](https://github.com/sgcob187575/ArUcoBeacon)https://github.com/sgcob187575/ArUcoBeacon
+* training data: [datasets/<training_dataset>](https://github.com/sgcob187575/ArUcoBeacon)
 * pretrained model: best/best.pt
 ## demo
 
