@@ -94,47 +94,47 @@ def main():
         h=height
         offset = T((0, 0))
         # 22.5 degree
-        Ly = int(round(np.tan(22.5 * np.pi / 180.0) * w / 2))
-        cv2.line(result_frame, T((0, h // 2 - Ly - h // 8)) + offset,
-                    T((w - 1, h // 2 + Ly - 1 - h // 8)) + offset, (128, 128, 128), 2)
-        cv2.line(result_frame, T((0, h // 2 - Ly)) + offset,
-                    T((w - 1, h // 2 + Ly - 1)) + offset, (128, 128, 128), 2)
-        cv2.line(result_frame, T((0, h // 2 - Ly + h // 8)) + offset,
-                    T((w - 1, h // 2 + Ly - 1 + h // 8)) + offset, (128, 128, 128), 2)
+        # Ly = int(round(np.tan(22.5 * np.pi / 180.0) * w / 2))
+        # cv2.line(result_frame, T((0, h // 2 - Ly - h // 8)) + offset,
+        #             T((w - 1, h // 2 + Ly - 1 - h // 8)) + offset, (128, 128, 128), 2)
+        # cv2.line(result_frame, T((0, h // 2 - Ly)) + offset,
+        #             T((w - 1, h // 2 + Ly - 1)) + offset, (128, 128, 128), 2)
+        # cv2.line(result_frame, T((0, h // 2 - Ly + h // 8)) + offset,
+        #             T((w - 1, h // 2 + Ly - 1 + h // 8)) + offset, (128, 128, 128), 2)
 
         # 157.5 degree
-        Ly = int(round(np.tan(22.5 * np.pi / 180.0) * w / 2))
-        cv2.line(result_frame, T((0, h // 2 + Ly - h // 8)) + offset,
-                    T((w - 1, h // 2 - Ly - 1 - h // 8)) + offset, (128, 128, 128), 2)
-        cv2.line(result_frame, T((0, h // 2 + Ly)) + offset,
-                    T((w - 1, h // 2 - Ly - 1)) + offset, (128, 128, 128), 2)
-        cv2.line(result_frame, T((0, h // 2 + Ly + h // 8)) + offset,
-                    T((w - 1, h // 2 - Ly - 1 + h // 8)) + offset, (128, 128, 128), 2)
+        # Ly = int(round(np.tan(22.5 * np.pi / 180.0) * w / 2))
+        # cv2.line(result_frame, T((0, h // 2 + Ly - h // 8)) + offset,
+        #             T((w - 1, h // 2 - Ly - 1 - h // 8)) + offset, (128, 128, 128), 2)
+        # cv2.line(result_frame, T((0, h // 2 + Ly)) + offset,
+        #             T((w - 1, h // 2 - Ly - 1)) + offset, (128, 128, 128), 2)
+        # cv2.line(result_frame, T((0, h // 2 + Ly + h // 8)) + offset,
+        #             T((w - 1, h // 2 - Ly - 1 + h // 8)) + offset, (128, 128, 128), 2)
 
         # 67.5 degree
-        Lx = int(round(np.tan(22.5 * np.pi / 180.0) * h / 2))
-        cv2.line(result_frame, T((w // 2 - Lx - w // 12, 0)) + offset,
-                    T((w // 2 + Lx - w // 12, h - 1)) + offset, (230, 224, 176), 2)
-        cv2.line(result_frame, T((w // 2 - Lx, 0)) + offset,
-                    T((w // 2 + Lx, h - 1)) + offset, (230, 224, 176), 2)
-        cv2.line(result_frame, T((w // 2 - Lx + w // 12, 0)) + offset,
-                    T((w // 2 + Lx + w // 12, h - 1)) + offset, (230, 224, 176), 2)
+        # Lx = int(round(np.tan(22.5 * np.pi / 180.0) * h / 2))
+        # cv2.line(result_frame, T((w // 2 - Lx - w // 12, 0)) + offset,
+        #             T((w // 2 + Lx - w // 12, h - 1)) + offset, (230, 224, 176), 2)
+        # cv2.line(result_frame, T((w // 2 - Lx, 0)) + offset,
+        #             T((w // 2 + Lx, h - 1)) + offset, (230, 224, 176), 2)
+        # cv2.line(result_frame, T((w // 2 - Lx + w // 12, 0)) + offset,
+        #             T((w // 2 + Lx + w // 12, h - 1)) + offset, (230, 224, 176), 2)
 
         # 112.5 degree
-        Lx = int(round(np.tan(22.5 * np.pi / 180.0) * h / 2))
-        cv2.line(result_frame, T((w // 2 + Lx - w // 12, 0)) + offset,
-                    T((w // 2 - Lx - w // 12, h - 1)) + offset, (230, 224, 176), 2)
-        cv2.line(result_frame, T((w // 2 + Lx, 0)) + offset,
-                    T((w // 2 - Lx, h - 1)) + offset, (230, 224, 176), 2)
-        cv2.line(result_frame, T((w // 2 + Lx + w // 12, 0)) + offset,
-                    T((w // 2 - Lx + w // 12, h - 1)) + offset, (230, 224, 176), 2)
+        # Lx = int(round(np.tan(22.5 * np.pi / 180.0) * h / 2))
+        # cv2.line(result_frame, T((w // 2 + Lx - w // 12, 0)) + offset,
+        #             T((w // 2 - Lx - w // 12, h - 1)) + offset, (230, 224, 176), 2)
+        # cv2.line(result_frame, T((w // 2 + Lx, 0)) + offset,
+        #             T((w // 2 - Lx, h - 1)) + offset, (230, 224, 176), 2)
+        # cv2.line(result_frame, T((w // 2 + Lx + w // 12, 0)) + offset,
+        #             T((w // 2 - Lx + w // 12, h - 1)) + offset, (230, 224, 176), 2)
 
         # 45 degree
-        cv2.line(result_frame, T((w // 2 - h // 2 - w // 12, 0)) + offset,
-                    T((w // 2 - 1 + h // 2 - w // 12, h - 1)) + offset, (0, 0, 255), 2)
-        cv2.line(result_frame, T((w // 2 - h // 2, 0)) + offset, T((w // 2 - 1 + h // 2, h - 1)) + offset, (0, 0, 255), 2)
-        cv2.line(result_frame, T((w // 2 - h // 2 + w // 12, 0)) + offset,
-                    T((w // 2 - 1 + h // 2 + w // 12, h - 1)) + offset, (0, 0, 255), 2)
+        # cv2.line(result_frame, T((w // 2 - h // 2 - w // 12, 0)) + offset,
+        #             T((w // 2 - 1 + h // 2 - w // 12, h - 1)) + offset, (0, 0, 255), 2)
+        # cv2.line(result_frame, T((w // 2 - h // 2, 0)) + offset, T((w // 2 - 1 + h // 2, h - 1)) + offset, (0, 0, 255), 2)
+        # cv2.line(result_frame, T((w // 2 - h // 2 + w // 12, 0)) + offset,
+        #             T((w // 2 - 1 + h // 2 + w // 12, h - 1)) + offset, (0, 0, 255), 2)
 
         # # 45 degree
         # cv2.line(result_frame, T((w // 2 - h // 2 - w // 12, 0)),
@@ -144,13 +144,13 @@ def main():
         #          T((w // 2 - 1 + h // 2 + w // 12, h - 1)), (0, 255, 0), 2)
 
         # 135 degree
-        cv2.line(result_frame, T((w // 2 + h // 2 - 2 - w // 12, 0)) + offset,
-                    T((w // 2 - 1 - h // 2 - w // 12, h - 1)) + offset, (0, 0, 255), 2)
-        cv2.line(result_frame, T((w // 2 + h // 2 - 2, 0)) + offset, T((w // 2 - 1 - h // 2, h - 1)) + offset, (0, 0, 255),
-                    2)
-        cv2.line(result_frame, T((w // 2 + h // 2 - 2 + w // 12, 0)) + offset,
-                    T((w // 2 - 1 - h // 2 + w // 12, h - 1)) + offset, (0, 0, 255), 2)
-        # # 135 degree
+        # cv2.line(result_frame, T((w // 2 + h // 2 - 2 - w // 12, 0)) + offset,
+        #             T((w // 2 - 1 - h // 2 - w // 12, h - 1)) + offset, (0, 0, 255), 2)
+        # cv2.line(result_frame, T((w // 2 + h // 2 - 2, 0)) + offset, T((w // 2 - 1 - h // 2, h - 1)) + offset, (0, 0, 255),
+        #             2)
+        # cv2.line(result_frame, T((w // 2 + h // 2 - 2 + w // 12, 0)) + offset,
+        #             T((w // 2 - 1 - h // 2 + w // 12, h - 1)) + offset, (0, 0, 255), 2)
+        # # # 135 degree
         # cv2.line(result_frame, T((w // 2 + h // 2 - 2 - w // 12, 0)),
         #          T((w // 2 - 1 - h // 2 - w // 12, h - 1)), (0, 255, 0), 2)
         # cv2.line(result_frame, T((w // 2 + h // 2 - 2, 0)), T((w // 2 - 1 - h // 2, h - 1)), (0, 255, 0),
@@ -159,11 +159,11 @@ def main():
         #          T((w // 2 - 1 - h // 2 + w // 12, h - 1)), (0, 255, 0), 2)
 
         # 180 degree
-        cv2.line(result_frame, T((0, h // 2 - h // 8 - 1)) + offset, T((w - 1, h // 2 - h // 8 - 1)) + offset, (0, 0, 255),
-                    2)
-        cv2.line(result_frame, T((0, h // 2 - 1)) + offset, T((w - 1, h // 2 - 1)) + offset, (0, 0, 255), 2)
-        cv2.line(result_frame, T((0, h // 2 + h // 8 - 1)) + offset, T((w - 1, h // 2 + h // 8 - 1)) + offset, (0, 0, 255),
-                    2)
+        # cv2.line(result_frame, T((0, h // 2 - h // 8 - 1)) + offset, T((w - 1, h // 2 - h // 8 - 1)) + offset, (0, 0, 255),
+        #             2)
+        # cv2.line(result_frame, T((0, h // 2 - 1)) + offset, T((w - 1, h // 2 - 1)) + offset, (0, 0, 255), 2)
+        # cv2.line(result_frame, T((0, h // 2 + h // 8 - 1)) + offset, T((w - 1, h // 2 + h // 8 - 1)) + offset, (0, 0, 255),
+        #             2)
         # # 180 degree
         # cv2.line(result_frame, T((0, h // 2 - h // 8 - 1)), T((w - 1, h // 2 - h // 8 - 1)), (0, 255, 0),
         #          2)
@@ -172,18 +172,20 @@ def main():
         #          2)
 
         # 90 degree
-        cv2.line(result_frame, T((w // 2 - w // 12 - 1, 0)) + offset, T((w // 2 - w // 12 - 1, h - 1)) + offset,
-                    (0, 0, 255), 2)
-        cv2.line(result_frame, T((w // 2 - 1, 0)) + offset, T((w // 2 - 1, h - 1)) + offset, (0, 0, 255), 2)
-        cv2.line(result_frame, T((w // 2 + w // 12 - 1, 0)) + offset, T((w // 2 + w // 12 - 1, h - 1)) + offset,
-                    (0, 0, 255), 2)
-        # # 90 degree
+        # cv2.line(result_frame, T((w // 2 - w // 12 - 1, 0)) + offset, T((w // 2 - w // 12 - 1, h - 1)) + offset,
+        #             (0, 0, 255), 2)
+        # cv2.line(result_frame, T((w // 2 - 1, 0)) + offset, T((w // 2 - 1, h - 1)) + offset, (0, 0, 255), 2)
+        # cv2.line(result_frame, T((w // 2 + w // 12 - 1, 0)) + offset, T((w // 2 + w // 12 - 1, h - 1)) + offset,
+        #             (0, 0, 255), 2)
+        # # # 90 degree
         # cv2.line(result_frame, T((w // 2 - w // 12 - 1, 0)), T((w // 2 - w // 12 - 1, h - 1)),
         #          (0, 255, 0), 2)
         # cv2.line(result_frame, T((w // 2 - 1, 0)), T((w // 2 - 1, h - 1)), (0, 255, 0), 2)
         # cv2.line(result_frame, T((w // 2 + w // 12 - 1, 0)), T((w // 2 + w // 12 - 1, h - 1)),
         #          (0, 255, 0), 2)
         cv2.imshow('framecopy' , result_frame)
+        vid_L.write(result_frame)
+
         key = cv2.waitKey(1)
         if key != -1:
             keyboard(drone, key)

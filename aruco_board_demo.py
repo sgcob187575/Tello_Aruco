@@ -2,7 +2,7 @@ from turtle import width
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 import mpl_toolkits.mplot3d.art3d as art3d
-
+import math
 import cv2
 import numpy as np
 #import tello
@@ -15,7 +15,7 @@ import sys
 
 tello = None
 Go_=False
-No_flying=False
+No_flying=True
 is_flying = False
 start_fly=False
 
@@ -30,8 +30,10 @@ def keyboard(self, key):
     degree = 30
     if key == ord('1'):
         self.takeoff()
-        is_flying = True
+
     if key == ord('2'):
+        battery = self.get_battery()
+        print ("battery: ",battery)
         self.land()
         is_flying = False
     if key == ord('3'):
@@ -130,12 +132,19 @@ def control_UVA(drone,df,width,height,coord=[0,0,-50]) :
                 # print("Turn left")
         else:
             x_update =coord[0]
-            if x_update>0.6:
+            if x_update>0.3:
                 x_update=-max_lf_threshold
-            elif x_update<0:
+            elif x_update<0.3:
                 x_update=max_lf_threshold
             else:
                 x_update=0
+            if (marker_center[0] - width/2)>0:
+                x_update=max_lf_threshold
+            elif (marker_center[0] - width/2)<0:
+                x_update=-max_lf_threshold
+            else:
+                x_update=0
+            
         if abs(marker_center[1] - height/2) > 30 and (boxheight>300 or abs(coord[2])<4):       #上下
             # print(marker_center[1] - height/2)
             y_update = (marker_center[1] - height/2)//-7
@@ -159,16 +168,21 @@ def control_UVA(drone,df,width,height,coord=[0,0,-50]) :
                 # return "1,rollLeft,0,0.5,0,0"
     else:
         if is_flying:
-            drone.send_rc_control(0, 0, 0, 0) 
+            pass
+            #drone.send_rc_control(0, 0, 0, 0) 
     return x_update,z_update,y_update,yaw_update
 def hovering_control(coord_array,scale):
     avg_dir=np.array([0,0,0],dtype=np.float64)
     for before,after in zip(coord_array[:-2],coord_array[1:]):
         avg_dir+=np.array(after)-np.array(before)
     avg_dir/=len(coord_array)-1
-    x_update=-avg_dir[0]/abs(avg_dir[0])*scale/2
-    y_update=avg_dir[1]/abs(avg_dir[1])*scale/2
-    z_update=-avg_dir[2]/abs(avg_dir[2])*scale
+    x_update=-avg_dir[0]/abs(avg_dir[0])*scale//2
+    if abs(avg_dir[1])>0.2:
+        y_update=avg_dir[1]/abs(avg_dir[1])*scale/2
+    else:
+        y_update=0
+    z_update=-avg_dir[2]/abs(avg_dir[2])*scale/1.5
+    z_update=0
     return x_update,y_update,z_update
 
 def del_difftag(raw_corners,raw_ids):
@@ -249,7 +263,34 @@ def draw_path(coords_3d):
     fig.tight_layout()
     plt.savefig('run/figures/drone_{}.png'.format(time.strftime("%m_%d_%H_%M_%S",time.localtime())))
     plt.close()
-
+def isRotationMatrix(R) :
+    Rt = np.transpose(R)
+    shouldBeIdentity = np.dot(Rt, R)
+    I = np.identity(3, dtype = R.dtype)
+    n = np.linalg.norm(I - shouldBeIdentity)
+    return n < 1e-6
+ 
+# Calculates rotation matrix to euler angles
+# The result is the same as MATLAB except the order
+# of the euler angles ( x and z are swapped ).
+def rotationMatrixToEulerAngles(R) :
+ 
+    assert(isRotationMatrix(R))
+ 
+    sy = math.sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
+ 
+    singular = sy < 1e-6
+ 
+    if  not singular :
+        x = math.atan2(R[2,1] , R[2,2])
+        y = math.atan2(-R[2,0], sy)
+        z = math.atan2(R[1,0], R[0,0])
+    else :
+        x = math.atan2(-R[1,2], R[1,1])
+        y = math.atan2(-R[2,0], sy)
+        z = 0
+ 
+    return np.array([x, y, z])
 def main():
     # Tello
     model = torch.hub.load('yolov5', 'custom', path='./best/best.pt',source='local')
@@ -264,10 +305,8 @@ def main():
     global start_fly
     x_update=y_update=z_update=yaw_update=0
     # # Get the parameters of camera calibration
-    # fs = cv2.FileStorage("calibrateCamera.xml", cv2.FILE_STORAGE_READ)
-    # intrinsic = fs.getNode("intrinsic").mat()
-    # distortion = fs.getNode('distortion').mat()
-    intrinsic = np.load("run/numpy/opencv_mtx.npy")
+   
+    intrinsic = np.load("run/numpy/avg_mtx.npy")
     distortion = np.load("run/numpy/opencv_dist.npy")
 
 
@@ -280,7 +319,7 @@ def main():
     # y_pid.initialize()
 
     max_speed_threshold = 40
-    max_lf_threshold=30
+    max_lf_threshold=20
     # print(intrinsic)
     # print(distortion)
     # Aruco parameters
@@ -311,9 +350,10 @@ def main():
     vid = cv2.VideoWriter('record/drone_{}.MP4'.format(time.strftime("%m_%d_%H_%M_%S",time.localtime())), cv2.VideoWriter_fourcc(*'mp4v'),24, (960, 720))
     vid_L = cv2.VideoWriter('record/drone_{}L.MP4'.format(time.strftime("%m_%d_%H_%M_%S",time.localtime())), cv2.VideoWriter_fourcc(*'mp4v'), 24, (960, 720))
     count_frame=0
-    start_fly=False
+
     coord_array = []
     scale=40
+    yolo2arUco=0
     while True:
         x_update=y_update=z_update=0
         xyz_text=""
@@ -351,7 +391,7 @@ def main():
         # IMU=drone.query_attitude()
         # print(IMU)
         markerCorners, markerIds, _ = cv2.aruco.detectMarkers(frame, aruco_dict, parameters=aruco_params)
-        if len(markerCorners):
+        if len(markerCorners)>3 and yolo2arUco==0:
             corners,ids=del_difftag(markerCorners, markerIds)
             np_ids = np.array(ids)
             _, rvec, tvec = cv2.aruco.estimatePoseBoard(corners, np_ids, aruco_board, intrinsic, distortion, None, None, False)
@@ -365,6 +405,7 @@ def main():
                 RotationMatrix = cv2.Rodrigues(rvec)
                 rmat, _ = cv2.Rodrigues(rvec)
                 coord = (rmat.T@-tvec).T
+                angle=rotationMatrixToEulerAngles(rmat)
                 #print("coord",coord)
                 #tvec=tvec.reshape(-1,3)
                 #print("tvec",tvec)
@@ -390,10 +431,15 @@ def main():
                 
                 # display distance and axis
                 distance = np.sum(np.sqrt(tvec**2))
+                angle=[math.degrees(angle[0]),math.degrees(angle[1]),math.degrees(angle[2])]
+                angle=np.round(np.array(angle),2)
+                if abs(angle[1])>15 and coord[0,2]>-3:
+                    yolo2arUco=1
 
-                cv2.putText(result_frame, "Distance: {:.2f}m".format(distance), np.array([20, height-20]), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0, 255, 0), thickness=2)
+                cv2.putText(result_frame, "Distance: {:.2f}m Angle x={},y={},z={}".format(distance,angle[0],angle[1],angle[2]), np.array([20, height-20]), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0, 255, 0), thickness=2)
                 cv2.drawFrameAxes(result_frame, intrinsic, distortion, rvec, tvec, 0.2)
-                coord_array.append([coord[0,0],coord[0,1],coord[0,2]])
+                if len(markerCorners)>7:
+                    coord_array.append([coord[0,0],coord[0,1],coord[0,2]])
                 xyz_text = "x: " + str(round(coord[0,0],3)) + "  y: " + str(round(coord[0,1], 3)) + "  z: " + str(round(coord[0,2],3))+" world degree: "+str(round(world_degree,3))+" yaw: "+str(round(yaw,3))
                 cv2.putText(result_frame , xyz_text, np.array([20, height-50]) , cv2.FONT_HERSHEY_SIMPLEX , 0.8 , (0,255,255) , 2 , cv2.LINE_AA)
                 if abs(coord[0,0]-0.3)<0.3 and abs(coord[0,1]-0.3)<0.5 and coord[0,2]>-2:
@@ -508,8 +554,11 @@ def main():
         else:
             if(len(df.index)):
                 Go_=True      
-                if len(coord_array):
-                    x_update,z_update,y_update,yaw_update=control_UVA(drone,df,width,height,coord_array[-1])
+                if len(coord_array)>11:
+                    yolo2arUco+=1
+                    x_update,z_update,y_update,yaw_update=control_UVA(drone,df,width,height,np.array(coord_array[-10:]).mean(axis=0))
+                    if yolo2arUco>20:
+                        yolo2arUco=0
                 else:
                     x_update,z_update,y_update,yaw_update=control_UVA(drone,df,width,height)
 
