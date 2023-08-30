@@ -314,9 +314,13 @@ def control_by_ArUco(result_frame,coord_array, markerCorners, markerIds):
             elif z_update < -MAX_FB_SPEED:
                 z_update = 0
         else:
-            rotate_delay=0
-            if(abs(coord[0,2]) > SIDE_FLIGHT_TH and rotate_delay<=0):
-                rotate_delay-=1
+            #code2-1    
+            if abs(coord[0,1]-HALF_BOARD_SIZE)>Y_DRIFT_TH:
+                if coord[0,1]-HALF_BOARD_SIZE > Y_DRIFT_TH:
+                    y_update = MAX_UD_SPEED
+                elif coord[0,1]-HALF_BOARD_SIZE < -Y_DRIFT_TH:
+                    y_update = -MAX_UD_SPEED
+            if abs(coord[0,2]) > SIDE_FLIGHT_TH:
                 z_update = Z_SPEED_INITIAL-coord[0,2]
                 if z_update > MAX_FB_SPEED:
                     z_update = MAX_FB_SPEED
@@ -332,10 +336,6 @@ def control_by_ArUco(result_frame,coord_array, markerCorners, markerIds):
                         elif yaw_update < -MAX_ROTATE_SPEED:
                             yaw_update = -MAX_ROTATE_SPEED
             else:
-                if abs(coord[0,2]) < SIDE_FLIGHT_TH:
-                    rotate_delay-=1
-                else:
-                    rotate_delay=300 #10s
                 if (abs(yaw-world_degree) > 8) and abs(world_degree)<ROTATE_TH :
                     yaw_update = yaw-world_degree
                     if yaw_update > MAX_ROTATE_SPEED:
@@ -355,18 +355,7 @@ def control_by_ArUco(result_frame,coord_array, markerCorners, markerIds):
                             z_update = MAX_FB_SPEED
                         elif z_update < 0:
                             z_update = 0
-                
-            height_delay=0
-            if (abs(coord[0,1]-HALF_BOARD_SIZE)>Y_DRIFT_TH) and height_delay<=0:
-                height_delay-=1
-                if coord[0,1]-HALF_BOARD_SIZE > Y_DRIFT_TH:
-                    y_update = MAX_UD_SPEED
-                elif coord[0,1]-HALF_BOARD_SIZE < -Y_DRIFT_TH:
-                    y_update = -MAX_UD_SPEED
-            elif abs(coord[0,1]-HALF_BOARD_SIZE)<Y_DRIFT_TH:
-                height_delay=150 #5s
-            else:
-                height_delay-=1
+            
 
     return x_update,z_update,y_update,yaw_update,coord,angle,world_degree,yaw,distance,coord_array
 def draw_result(result_frame,df, x_update,z_update,y_update,yaw_update,frame_height,brightness,angle=None,coord=None,world_degree=None,yaw=None,distance=None):
