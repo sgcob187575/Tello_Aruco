@@ -16,20 +16,27 @@ MARKERS_X=3   #x方向marker數量
 MARKERS_Y=3   #y方向marker數量
 MRRKER_SIZE=0.16#0.06#0.16 #marker尺寸(單位：公尺)
 MARKER_SEPERATION=0.027#0.01#0.027 #marker間隔(單位：公尺)
+ARUCO_MODE_MARKER_TH=3#ArUco定位MARKER數量門檻值
 X_DRIFT_TH = 0.3 # 水平方向懸停飄移門檻值(單位：公尺)
 Y_DRIFT_TH = 0.3 # 垂直方向懸停飄移門檻值 (單位：公尺)   
+COORD_RECORD_TH  # 座標紀錄偵測最小Marker數
 HOVERING_DISTANCE_TH = 2 #接近ArUco board 懸停門檻值(單位：公尺)
 HALF_BOARD_SIZE = 0.3 #ArUco board 大小的一半
 ONLY_FORWARD_DISTANCE_TH = 20 #接近至board前才調整姿態，否則僅前進
 MAX_FB_SPEED = 40  #無人機前後飛的最高速度
 MAX_IF_SPEED=20    #無人機左右飛的最高速度
 MAX_UD_SPEED=40    #無人機上下飛的最高速度
-MAX_ROTATE_SPEED=10
-
-hovering_velocity_scale=40 #懸停時，為了調整速度的慣性，煞停的緩衝調整值  
-HOVERING_VELOCITY_SCALE_TH = 20 #煞停的緩衝最小值
+MAX_ROTATE_SPEED=10 #無人機旋轉飛的最高速度
+YAW_TH=5 #ArUco旋轉修正角度門檻值
+WORLD_DEGREE_TH=20 #相對角度過大平飛門檻值
+hovering_velocity_scale=20 #懸停時，為了調整速度的慣性，煞停的緩衝調整值  
+HOVERING_VELOCITY_SCALE_TH = 10 #煞停的緩衝最小值
 PIXEL_DISTANCE_TO_VELOCITY_SCALE=7
 ROTATE_TH=20 #單位pixel
+ROTATE_DEGREE_TH=8 #看向ArUco的角度門檻值(單位度)
+FPS=30
+YOLO_RESTORE_TH=10 #YOLO恢復位置紀錄座標數最小門檻值
+
 UP_DOWN_TH=30 #單位pixel
 BOXHIGHT_CONTROL_UPDOWN_TH=300#單位pixel
 Z_SPEED_INITIAL=30
@@ -38,6 +45,8 @@ tello = None
 No_flying=True  #T:不飛行的模式
 is_flying = False
 start_fly=False
+ARUCO_MAX_ID=9 #以ID判斷錯誤偵測
+OUTLIER_MIN_NUM=3 #至少要有3個才有所謂離群值
 CornerRefineMethod = {'NONE': cv2.aruco.CORNER_REFINE_NONE,
                         'SUBPIX': cv2.aruco.CORNER_REFINE_SUBPIX,
                         'CONTOUR': cv2.aruco.CORNER_REFINE_CONTOUR,
@@ -47,9 +56,11 @@ aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
 aruco_params = cv2.aruco.DetectorParameters_create()
 aruco_params.cornerRefinementMethod = CornerRefineMethod[refine_method]
 aruco_board = cv2.aruco.GridBoard_create(MARKERS_X, MARKERS_Y, MRRKER_SIZE, MARKER_SEPERATION, aruco_dict)
+
 intrinsic = np.load("run/numpy/avg_mtx.npy")
 distortion = np.load("run/numpy/opencv_dist.npy")
 yolo2arUco=0   #frame count for delay between yolov5 and arUco
+YOLO2ARUCO_DEGREE_TH=15 #角度大於定值延遲YOLO和ARUCO模式的切換
 
 def keyboard(self, key):
     global is_flying
@@ -188,13 +199,13 @@ def hovering_control(coord_array,scale):   #hovering
     for before,after in zip(coord_array[:-2],coord_array[1:]):
         avg_dir+=np.array(after)-np.array(before)
     avg_dir/=len(coord_array)-1
-    x_update=-avg_dir[0]/abs(avg_dir[0])*scale//2
+    #-avg_dir/abs(avg_dir)用來判斷方向 Scale給予速度調整
+    x_update=-avg_dir[0]/abs(avg_dir[0])*scale
     if abs(avg_dir[1])>0.2:
-        y_update=avg_dir[1]/abs(avg_dir[1])*scale//2
+        y_update=avg_dir[1]/abs(avg_dir[1])*scale
     else:
         y_update=0
-    z_update=-avg_dir[2]/abs(avg_dir[2])*scale//1.5
-    z_update=0
+    z_update=-avg_dir[2]/abs(avg_dir[2])*scale
     return x_update,y_update,z_update
     
 def removearray(L,arr):
@@ -212,10 +223,10 @@ def remove_ArUco_error_detection (raw_corners,raw_ids):  #排除誤偵測：刪�
     corners = []
 
     for c, i in zip(raw_corners, raw_ids):
-        if (c[0][0] < c[0][2]).all() and i<9:
+        if (c[0][0] < c[0][2]).all() and i<ARUCO_MAX_ID:
             ids.append(i)
             corners.append(c)
-    if len(corners)>2:
+    if len(corners)>=OUTLIER_MIN_NUM:
         for c, i in zip(corners.copy(), ids.copy()):
             avg_corner=np.array(corners)[:,:,0,:].mean(axis=0)
             if (np.absolute(c[0][0]-avg_corner)>4*np.absolute(c[0][0]-c[0][2])).any():
@@ -295,9 +306,9 @@ def control_by_ArUco(result_frame,coord_array, markerCorners, markerIds):
         
         angle=[math.degrees(angle[0]),math.degrees(angle[1]),math.degrees(angle[2])]
         angle=np.round(np.array(angle),2)
-        if abs(angle[1])>15 and coord[0,2]>-SIDE_FLIGHT_TH:
+        if abs(angle[1])>YOLO2ARUCO_DEGREE_TH and coord[0,2]>-SIDE_FLIGHT_TH:
             yolo2arUco=1         #近的時候角度過大先以YOLO偵測為主，因此延遲一秒
-        if len(markerCorners)>7:
+        if len(markerCorners)>COORD_RECORD_TH:
             coord_array.append([coord[0,0],coord[0,1],coord[0,2]])
         #ArUco Navigation
         if abs(coord[0,0] - HALF_BOARD_SIZE)< X_DRIFT_TH and abs(coord[0,1] - HALF_BOARD_SIZE)< Y_DRIFT_TH and coord[0,2]> -HOVERING_DISTANCE_TH:
@@ -306,7 +317,7 @@ def control_by_ArUco(result_frame,coord_array, markerCorners, markerIds):
             cv2.putText(result_frame, "hovering", np.array([20, frame_height-180]), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0, 255, 0), thickness=2)
             x_update,y_update,z_update=hovering_control(coord_array[-1:],hovering_velocity_scale)
             if hovering_velocity_scale > HOVERING_VELOCITY_SCALE_TH:
-                hovering_velocity_scale-=0.2
+                hovering_velocity_scale-=0.1
         elif(abs(coord[0,2]) > ONLY_FORWARD_DISTANCE_TH):
             z_update = -coord[0,2]+ONLY_FORWARD_DISTANCE_TH 
             if z_update > MAX_FB_SPEED:
@@ -316,18 +327,21 @@ def control_by_ArUco(result_frame,coord_array, markerCorners, markerIds):
         else:
             #code2-1    
             if abs(coord[0,1]-HALF_BOARD_SIZE)>Y_DRIFT_TH:
+                #code2-2
                 if coord[0,1]-HALF_BOARD_SIZE > Y_DRIFT_TH:
                     y_update = MAX_UD_SPEED
                 elif coord[0,1]-HALF_BOARD_SIZE < -Y_DRIFT_TH:
                     y_update = -MAX_UD_SPEED
+            #code2-3
             if abs(coord[0,2]) > SIDE_FLIGHT_TH:
                 z_update = Z_SPEED_INITIAL-coord[0,2]
                 if z_update > MAX_FB_SPEED:
                     z_update = MAX_FB_SPEED
                 elif z_update < 0:
                     z_update = 0
-                if (abs(yaw) > 5) :
-                    if abs(world_degree)>30:
+                #code2-5
+                if (abs(yaw) > YAW_TH) :
+                    if abs(world_degree)>WORLD_DEGREE_TH:
                         x_update=world_degree
                     else:
                         yaw_update = yaw
@@ -336,19 +350,22 @@ def control_by_ArUco(result_frame,coord_array, markerCorners, markerIds):
                         elif yaw_update < -MAX_ROTATE_SPEED:
                             yaw_update = -MAX_ROTATE_SPEED
             else:
-                if (abs(yaw-world_degree) > 8) and abs(world_degree)<ROTATE_TH :
+                #code2-4
+                if (abs(yaw-world_degree) > ROTATE_DEGREE_TH) and abs(world_degree)<WORLD_DEGREE_TH :
                     yaw_update = yaw-world_degree
                     if yaw_update > MAX_ROTATE_SPEED:
                         yaw_update = MAX_ROTATE_SPEED
                     elif yaw_update < -MAX_ROTATE_SPEED:
                         yaw_update = -MAX_ROTATE_SPEED
                 else:
+                    #code2-5
                     x_update =coord[0,0]
                     if x_update- HALF_BOARD_SIZE> X_DRIFT_TH:
                         x_update=-MAX_IF_SPEED
                     elif x_update- HALF_BOARD_SIZE< X_DRIFT_TH:
                         x_update=MAX_IF_SPEED
                     else:
+                        #code2-6
                         x_update=0
                         z_update =Z_SPEED_INITIAL-coord[0,2]
                         if z_update > MAX_FB_SPEED:
@@ -437,7 +454,7 @@ def main():
         result_frame=frame.copy()
         markerCorners, markerIds, _ = cv2.aruco.detectMarkers(frame, aruco_dict, parameters=aruco_params)
         #code1
-        if len(markerCorners)>3 and yolo2arUco==0:   #marker偵測數量>3時 
+        if len(markerCorners)>ARUCO_MODE_MARKER_TH and yolo2arUco==0:   #marker偵測數量>3時 
             #code2
             x_update,z_update,y_update,yaw_update,coord,angle,world_degree,yaw,distance,coord_array = control_by_ArUco(result_frame,coord_array, markerCorners, markerIds)
             
@@ -450,11 +467,11 @@ def main():
         else: #YOLOv5 Navigation
             #code3
             if(len(df.index)):
-                if len(coord_array)>10:
+                if len(coord_array)>YOLO_RESTORE_TH:
                     yolo2arUco+=1
                     #code5
                     x_update,z_update,y_update,yaw_update=control_by_YOLOv5(drone,df,frame_width,frame_height,np.array(coord_array[-10:]).mean(axis=0))
-                    if yolo2arUco>30: #1s
+                    if yolo2arUco>FPS: #1s
                         yolo2arUco=0
                 else:
                     #code4
