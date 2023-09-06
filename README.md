@@ -19,10 +19,20 @@ Drone Positioning in GPS-less Environment Using Fiducial Marker and Multi-Intens
 * conda install pytorch torchvision torchaudio pytorch-cuda=VERSION -c pytorch -c nvidia
 ## Demo
 
-### object
-* Beacon
-<img src="img/beacon.png">
+### Detection
+* Navigation using YOLOv5
+<img src="img/beacon.png" width="400px">
 
-* ArUco Board
-<img src="img/ArUco_board.png">
+* ArUco Localization and Navigation
+<img src="img/ArUco_board.png" width="400px">
 
+## Algorithm
+
+### Drone Guidance Algorithm
+<img src="img/algorithm/Drone_Guidance_Algorithm.png" width="600px">
+
+### ArUco Localization and Navigation
+<img src="img/algorithm/ArUco_Localization_and_Navigation.png" width="600px">
+
+### Navigation using YOLOv5
+<img src="img/algorithm/Navigation_using_YOLOv5.png" width="600px">
