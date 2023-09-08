@@ -19,7 +19,7 @@ MARKER_SEPERATION=0.027#0.01#0.027 #marker間隔(單位：公尺)
 ARUCO_MODE_MARKER_TH=3#ArUco定位MARKER數量門檻值
 X_DRIFT_TH = 0.3 # 水平方向懸停飄移門檻值(單位：公尺)
 Y_DRIFT_TH = 0.3 # 垂直方向懸停飄移門檻值 (單位：公尺)   
-COORD_RECORD_TH  # 座標紀錄偵測最小Marker數
+COORD_RECORD_TH=3  # 座標紀錄偵測最小Marker數
 HOVERING_DISTANCE_TH = 2 #接近ArUco board 懸停門檻值(單位：公尺)
 HALF_BOARD_SIZE = 0.3 #ArUco board 大小的一半
 ONLY_FORWARD_DISTANCE_TH = 20 #接近至board前才調整姿態，否則僅前進
