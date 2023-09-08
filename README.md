@@ -10,7 +10,7 @@ Drone Positioning in GPS-less Environment Using Fiducial Marker and Multi-Intens
 ## Usage
 * calibration with opencv: https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html 
 * cd Tello_Aruco
-* connect wifi "Tello-XXXXXXX" (TELLO SERIAL NUMBER)
+* connect drone's wifi "Tello-XXXXXX" (TELLO SERIAL NUMBER,ex:Tello-59F789)
 * python ./aruco_board_demo
 
 ### data preparation
