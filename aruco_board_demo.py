@@ -1,4 +1,3 @@
-from turtle import width
 from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 import mpl_toolkits.mplot3d.art3d as art3d
@@ -27,6 +26,7 @@ MAX_FB_SPEED = 40  #無人機前後飛的最高速度
 MAX_IF_SPEED=20    #無人機左右飛的最高速度
 MAX_UD_SPEED=40    #無人機上下飛的最高速度
 MAX_ROTATE_SPEED=10 #無人機旋轉飛的最高速度
+MAX_X_TH=10 #無人機飛行靠近座標太大門檻值(單位:公尺)
 YAW_TH=5 #ArUco旋轉修正角度門檻值
 WORLD_DEGREE_TH=20 #相對角度過大平飛門檻值
 hovering_velocity_scale=20 #懸停時，為了調整速度的慣性，煞停的緩衝調整值  
@@ -107,10 +107,10 @@ def keyboard(self, key):
     if key == ord('v'):#逆時針旋轉
         self.send_rc_control(0, 0, 0, (-1) *degree)
         print("counter rotate!!!!")
-    if key == ord('5'):#獲得高度
+    if key == ord('5'):#獲得高度 
         height = self.get_height()
         if height>5:
-            is_flying=True
+            is_flying=True #啟動自動飛行
         print("height: ",height)
     if key == ord('6'):#獲得電池量
         battery = self.get_battery()
@@ -173,9 +173,9 @@ def control_by_YOLOv5(drone,df,width,height,coord=[0,0,-50]) : #for YOLOv5 navig
         else:
             #code4-5
             x_update =coord[0]
-            if x_update>HALF_BOARD_SIZE:
+            if x_update>MAX_X_TH:
                 x_update=-MAX_IF_SPEED
-            elif x_update<HALF_BOARD_SIZE:
+            elif x_update<MAX_X_TH:
                 x_update=MAX_IF_SPEED
             else:
                 x_update=0
@@ -226,7 +226,7 @@ def remove_ArUco_error_detection (raw_corners,raw_ids):  #排除誤偵測：刪�
         if (c[0][0] < c[0][2]).all() and i<ARUCO_MAX_ID:
             ids.append(i)
             corners.append(c)
-    if len(corners)>=OUTLIER_MIN_NUM:
+    if len(corners)>=OUTLIER_MIN_NUM:   #另一個鬼影ArUco Marker(0-8)透過此方法去除
         for c, i in zip(corners.copy(), ids.copy()):
             avg_corner=np.array(corners)[:,:,0,:].mean(axis=0)
             if (np.absolute(c[0][0]-avg_corner)>4*np.absolute(c[0][0]-c[0][2])).any():
@@ -311,29 +311,29 @@ def control_by_ArUco(result_frame,coord_array, markerCorners, markerIds):
         if len(markerCorners)>COORD_RECORD_TH:
             coord_array.append([coord[0,0],coord[0,1],coord[0,2]])
         #ArUco Navigation
-        if abs(coord[0,0] - HALF_BOARD_SIZE)< X_DRIFT_TH and abs(coord[0,1] - HALF_BOARD_SIZE)< Y_DRIFT_TH and coord[0,2]> -HOVERING_DISTANCE_TH:
+        if abs(coord[0,0] - HALF_BOARD_SIZE)< X_DRIFT_TH and abs(coord[0,1] - HALF_BOARD_SIZE)< Y_DRIFT_TH and coord[0,2]> -HOVERING_DISTANCE_TH:#滿足懸停條件
             #code6
             print("...............hovering...............")
             cv2.putText(result_frame, "hovering", np.array([20, frame_height-180]), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0, 255, 0), thickness=2)
             x_update,y_update,z_update=hovering_control(coord_array[-1:],hovering_velocity_scale)
             if hovering_velocity_scale > HOVERING_VELOCITY_SCALE_TH:
                 hovering_velocity_scale-=0.1
-        elif(abs(coord[0,2]) > ONLY_FORWARD_DISTANCE_TH):
+        elif(abs(coord[0,2]) > ONLY_FORWARD_DISTANCE_TH): #太遠只前飛
             z_update = -coord[0,2]+ONLY_FORWARD_DISTANCE_TH 
             if z_update > MAX_FB_SPEED:
                 z_update = MAX_FB_SPEED
             elif z_update < -MAX_FB_SPEED:
                 z_update = 0
-        else:
+        else:            #透過ArUco Board導航
             #code2-1    
-            if abs(coord[0,1]-HALF_BOARD_SIZE)>Y_DRIFT_TH:
+            if abs(coord[0,1]-HALF_BOARD_SIZE)>Y_DRIFT_TH:   #上下
                 #code2-2
                 if coord[0,1]-HALF_BOARD_SIZE > Y_DRIFT_TH:
                     y_update = MAX_UD_SPEED
                 elif coord[0,1]-HALF_BOARD_SIZE < -Y_DRIFT_TH:
                     y_update = -MAX_UD_SPEED
             #code2-3
-            if abs(coord[0,2]) > SIDE_FLIGHT_TH:
+            if abs(coord[0,2]) > SIDE_FLIGHT_TH:        #旋轉
                 z_update = Z_SPEED_INITIAL-coord[0,2]
                 if z_update > MAX_FB_SPEED:
                     z_update = MAX_FB_SPEED
@@ -467,14 +467,14 @@ def main():
         else: #YOLOv5 Navigation
             #code3
             if(len(df.index)):
-                if len(coord_array)>YOLO_RESTORE_TH:
+                if len(coord_array)>YOLO_RESTORE_TH:  #近距離與ArUco相搭配
                     yolo2arUco+=1
                     #code5
                     x_update,z_update,y_update,yaw_update=control_by_YOLOv5(drone,df,frame_width,frame_height,np.array(coord_array[-10:]).mean(axis=0))
                     if yolo2arUco>FPS: #1s
                         yolo2arUco=0
                 else:
-                    #code4
+                    #code4            #遠距離導引
                     x_update,z_update,y_update,yaw_update=control_by_YOLOv5(drone,df,frame_width,frame_height)
                 #畫圖
                 draw_result(result_frame,df, x_update,z_update,y_update,yaw_update,frame_height,brightness)
