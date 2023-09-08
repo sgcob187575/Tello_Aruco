@@ -6,6 +6,12 @@ Drone Positioning in GPS-less Environment Using Fiducial Marker and Multi-Intens
 * pytorch
 * opencv-python==4.6.0.66
 * opencv-contrib-python==4.6.0.66
+  
+## Usage
+* calibration with opencv: https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html 
+* cd Tello_Aruco
+* connect wifi "Tello-XXXXXXX"
+* python ./aruco_board_demo
 
 ### data preparation
 * training data: [datasets/<training_dataset>](https://github.com/sgcob187575/ArUcoBeacon)
