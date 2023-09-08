@@ -3,19 +3,19 @@ Drone Positioning in GPS-less Environment Using Fiducial Marker and Multi-Intens
 
 ## Setting
 * python 3.8
-* pytorch
+* torch==1.12.1
+* torchvision==0.13.1
+* cuda==12.0
 * opencv-python==4.6.0.66
 * opencv-contrib-python==4.6.0.66
-  
-## Usage
-* calibration with opencv: https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html 
-* cd Tello_Aruco
-* connect drone's wifi "Tello-XXXXXX" (TELLO SERIAL NUMBER,ex:Tello-59F789)
-* python ./aruco_board_demo
+* djitellopy==2.4.0
 
-### data preparation
+
+### data preparation for YOLOv5 navigation borad (ArUco Board + light beacon)
 * training data: [datasets/<training_dataset>](https://github.com/sgcob187575/ArUcoBeacon)
 * pretrained model: best/best.pt
+* reference:https://blog.csdn.net/qq_45945548/article/details/121701492
+  
 ### installation guide
 * conda create -- name Tello_Aruco python=3.8
 * conda activate Tello_Aruco
@@ -23,6 +23,14 @@ Drone Positioning in GPS-less Environment Using Fiducial Marker and Multi-Intens
 * pip install opencv-contrib-python==4.6.0.66
 * pip install djitellopy
 * conda install pytorch torchvision torchaudio pytorch-cuda=VERSION -c pytorch -c nvidia
+
+## Usage
+* calibration with opencv: https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html 
+* cd Tello_Aruco
+* connect drone's wifi "Tello-XXXXXX" (TELLO SERIAL NUMBER,ex:Tello-59F789)
+* python ./aruco_board_demo
+
+
 ## Demo
 
 ### Detection
